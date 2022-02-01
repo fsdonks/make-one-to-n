@@ -123,14 +123,6 @@ def results_by_phase(results_df):
     res=results_df.groupby(by=['SRC', 'AC', 'phase']).mean()
     return res.unstack(level=['phase'])
 
-#Weights used for a weighted score.
-phase_weights= {"comp1" : 0.125,
-               "comp2" : 0.125,
-               "phase1" : .0625,
-               "phase2" : .0625,
-               "phase3" : .5,
-               "phase4" : .125}
-
 d_weighted = 'dmet_times_weight'
 e_weighted = 'emet_times_weight'
 #dmet_sum='weighted_dmet_sum'
@@ -143,7 +135,7 @@ def reorder_columns(order, df):
     return df[cols]
 
 #compute score and excess from a path to results.txt
-def compute_scores(results_path):
+def compute_scores(results_path, phase_weights, title_strength):
     df=pd.read_csv(results_path, sep='\t')
     #sometimes all inventory was equal to 0, but we shouldn't have that. 
     #We should have all phases if all inventory ==0
@@ -172,19 +164,6 @@ def compute_scores(results_path):
          ).set_index(['SRC', 'AC'])
     res.drop(['NG', 'RC'], axis=1, level=0, inplace=True)
     return res
-
-
-# Read in the SRC baseline for strength and OI title.
-
-# In[ ]:
-
-
-baseline = pd.read_excel(resources+'TAA24-28_SRC_BASELINE_201130_DRAFTv6.xlsx', sheet_name='SRC_Baseline TAA 24-28')
-title_strength=baseline[['SRC', 'TITLE', 'STR']]
-
-
-# In[ ]:
-
 
 import openpyxl
 
@@ -241,7 +220,10 @@ def clear_column(row_start, column, sh):
             break
         sh.cell(row,column).value= None
         
-def make_one_n(results_map, peak_max_workbook):
+def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_name, baseline_path):
+    # Read in the SRC baseline for strength and OI title.
+    baseline = pd.read_excel(baseline_path)
+    title_strength=baseline[['SRC', 'TITLE', 'STR']]
     maxes=pd.read_excel(peak_max_workbook, "by_src")
     maxes['demand_name'] = maxes['demand_name'].astype(str)
     maxes=maxes.set_index('SRC')
@@ -251,12 +233,12 @@ def make_one_n(results_map, peak_max_workbook):
     ws=wb['default']
     default_max=str(ws['A1'].value)
     
-    writer = pd.ExcelWriter('TAA24-28_Modeling_Results.xlsx', engine='xlsxwriter')
+    writer = pd.ExcelWriter(out_root+one_n_name, engine='xlsxwriter')
     left=pd.DataFrame()
         
     for demand_name in results_map:
         #START OF SINGLE DEMAND OUTPUT WORKSHEET
-        scored_results = compute_scores(results_map[demand_name])
+        scored_results = compute_scores(results_map[demand_name], phase_weights, title_strength)
         if left.empty:
             max_df=scored_results.reset_index().groupby('SRC')['AC'].apply(max)
             maxes=max_df.to_dict()
@@ -287,7 +269,7 @@ def make_one_n(results_map, peak_max_workbook):
             left=scores
         else:
             right=scores
-            left = pd.merge(left,right,on=['SRC', 'AC'], how='inner')
+            left = pd.merge(left,right,on=['SRC', 'AC'], how='outer')
             
         #RESTART OF SINGLE DEMAND OUTPUT WORKSHEET
         #write to excel file here
@@ -345,7 +327,7 @@ def make_one_n(results_map, peak_max_workbook):
 
 
 
-    wb = openpyxl.reader.excel.load_workbook('TAA24-28_Modeling_Results.xlsx')
+    wb = openpyxl.reader.excel.load_workbook(out_root+one_n_name)
     ws=wb['combined']
     ws.cell(1, 1).value = "OML"
     #clear_column(2, 1, ws)
@@ -359,7 +341,7 @@ def make_one_n(results_map, peak_max_workbook):
         sh.delete_rows(3, 1)
         #We don't want index to show, and can't do with multi-index to_excel yet, so have to do it manually
         #clear_column(3, 1, sh)
-    wb.save('TAA24-28_Modeling_Results.xlsx')
+    wb.save(out_root+one_n_name)
 
 
 
