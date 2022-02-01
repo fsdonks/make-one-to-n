@@ -96,7 +96,6 @@ def by_phase_percentages(results_df):
                                                         (group_df['NG-deployable'] + 
                                                         group_df['AC-deployable'] + 
                                                         group_df['RC-deployable']) / group_df['total-quantity'])
-    print(group_df['total-quantity'].isnull().sum())
     #this will be 0 because if there is no demand, we don't have a record.
 
     return group_df
@@ -212,6 +211,7 @@ def clear_column(row_start, column, sh):
         sh.cell(row,column).value= None
         
 def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_name, baseline_path):
+    print('Building ', one_n_name)
     # Read in the SRC baseline for strength and OI title.
     baseline = pd.read_excel(baseline_path)
     title_strength=baseline[['SRC', 'TITLE', 'STR']]
@@ -271,7 +271,6 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
                        ]
         reordered=reorder_columns(initial_cols, scored_results)
         reordered.sort_values(by=[('Score', dmet_sum), ('Excess', emet_sum)], ascending=False, inplace=True)
-        print(reordered.groupby(by=('SRC', '')).sum().head())
         reordered.reset_index(inplace=True)
         reordered.drop(['index'], axis=1, level=0, inplace=True)
         #avoid rounding when we choose the min score later by doing a deep copy.
