@@ -13,17 +13,9 @@ from functools import partial
 
 # ### Standard Capacity Analysis Run with Default Initial Conditions
 
-# In[ ]:
-
-
-#resources location
-resources="/home/craig/workspace/taa_processor/resources/"
-#demandtrends folder
-root="/home/craig/runs/big_test/base-testdata-v7/"
-
-
 # In order to plot a line chart of TotalRequired and Deployed, we group by time and sum the values so that we have the total TotalRequired and Deployed for each day.  If you don't reset_index, you get a multi-index dataframe from groupby, which you can't plot, but functions called on groupby (like sum() here) will sum the values in each group.
-
+ #demandtrends folder
+#root="/home/craig/runs/big_test/base-testdata-v7/"
 # dtrends = root+ "DemandTrends.txt"
 # df=pd.read_csv(dtrends, sep='\t')
 # df.head()
@@ -36,36 +28,35 @@ root="/home/craig/runs/big_test/base-testdata-v7/"
 # ### Random Initial Conditions Output Checks
 
 # We've been storing the results the the parent directory alongside the MARATHON workbook.  results.txt is from random initial condition runs from marathon.analysis.random.
-
-# In[ ]:
-
-
-results = resources+ "results.txt" 
-results
-
-
-# In[ ]:
-
-
-df=pd.read_csv(results, sep='\t')
-df.head()
-
-
-# Here we count the number records for each \[SRC, AC\] group.  For x initial condition reps and y phases, we should have x*y records.  This is essentially pivoting in Python by count.
-
-# In[ ]:
-
-
-group_df = df.groupby(by=['SRC', 'AC']).count().reset_index()
-group_df.head()
-
-
-# Check for any \[SRC, AC\] tuple that doesn't have x*y records.
-
-# In[ ]:
-
-
-group_df[group_df['rep-seed']!=12]
+def check_rand_results():
+    #resources location
+    resources="/home/craig/workspace/taa_processor/resources/"
+    results = resources+ "results.txt" 
+    results
+    
+    
+    # In[ ]:
+    
+    
+    df=pd.read_csv(results, sep='\t')
+    df.head()
+    
+    
+    # Here we count the number records for each \[SRC, AC\] group.  For x initial condition reps and y phases, we should have x*y records.  This is essentially pivoting in Python by count.
+    
+    # In[ ]:
+    
+    
+    group_df = df.groupby(by=['SRC', 'AC']).count().reset_index()
+    group_df.head()
+    
+    
+    # Check for any \[SRC, AC\] tuple that doesn't have x*y records.
+    
+    # In[ ]:
+    
+    
+    group_df[group_df['rep-seed']!=12]
 
 
 # ## Post Processing

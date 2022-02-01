@@ -19,12 +19,15 @@ phase_weights= {"comp1" : 0.125,
                "phase3" : .5,
                "phase4" : .125}
 
-results_map = {'D' : proc.resources+"results_no_truncate_and_1_supply.txt", 
-               'C' : proc.resources+"results.txt",
-              'E' : proc.resources+"results_no_truncation.txt"}
+resources="/home/craig/workspace/taa_processor/resources/"
 
-peak_max_workbook=proc.resources+"computed_maxes.xlsx"
-baseline_path = proc.resources+'/TAA24-28_SRC_BASELINE_201130_DRAFTv6.xlsx'
+results_map = {'D' : resources+"results_no_truncate_and_1_supply.txt", 
+               'C' : resources+"results.txt",
+              'E' : resources+"results_no_truncation.txt"}
+
+
+peak_max_workbook=resources+"computed_maxes.xlsx"
+baseline_path = resources+'/TAA24-28_SRC_BASELINE_201130_DRAFTv6.xlsx'
 out_location="/home/craig/workspace/taa_processor/"
 proc.make_one_n(results_map, 
                 peak_max_workbook, 
