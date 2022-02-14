@@ -25,7 +25,6 @@ results_map = {'D' : resources+"results_no_truncate_and_1_supply.txt",
                'C' : resources+"results.txt",
               'E' : resources+"results_no_truncation.txt"}
 
-
 peak_max_workbook=resources+"computed_maxes.xlsx"
 baseline_path = resources+'/TAA24-28_SRC_BASELINE_201130_DRAFTv6.xlsx'
 out_location="/home/craig/workspace/taa_processor/"
@@ -34,4 +33,6 @@ proc.make_one_n(results_map,
                 out_location, 
                 phase_weights, 
                 'TAA24-28_Modeling_Results.xlsx', 
-                baseline_path)
+                baseline_path, True)
+
+proc.remove_blank_row(out_location+"out_of_order.xlsx", out_location+"out_of_order.xlsx")

@@ -8,6 +8,7 @@ import pandas as pd
 from functools import partial
 from pathlib import Path
 import openpyxl
+import sys
 # # TAA Post Processing
 
 # ## Output Checking
@@ -274,9 +275,13 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
     orders= Path(order_path)
     if orders.is_file():
         order_writer = pd.ExcelWriter(order_path, engine='openpyxl', mode='a', if_sheet_exists='replace')
-        book=openpyxl.load_workbook(out_root+"out_of_order.xlsx")
-        order_writer.book = openpyxl.load_workbook(out_root+"out_of_order.xlsx")
-        order_writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
+        # if we're on windows, we need to modify some things for replace to
+        #work properly.  Might be a bug in ExcelWriter on the high side
+        #Windows version of Anaconda.
+        if sys.platform=='nt':
+            book=openpyxl.load_workbook(out_root+"out_of_order.xlsx")
+            order_writer.book = openpyxl.load_workbook(out_root+"out_of_order.xlsx")
+            order_writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
     else:
         order_writer = pd.ExcelWriter(out_root+"out_of_order.xlsx", engine='xlsxwriter')
             
