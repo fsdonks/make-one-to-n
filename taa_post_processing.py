@@ -6,16 +6,17 @@
 
 import pandas as pd
 from functools import partial
-
+from pathlib import Path
+import openpyxl
 # # TAA Post Processing
 
 # ## Output Checking
 
 # ### Standard Capacity Analysis Run with Default Initial Conditions
 
+
 # In order to plot a line chart of TotalRequired and Deployed, we group by time and sum the values so that we have the total TotalRequired and Deployed for each day.  If you don't reset_index, you get a multi-index dataframe from groupby, which you can't plot, but functions called on groupby (like sum() here) will sum the values in each group.
- #demandtrends folder
-#root="/home/craig/runs/big_test/base-testdata-v7/"
+
 # dtrends = root+ "DemandTrends.txt"
 # df=pd.read_csv(dtrends, sep='\t')
 # df.head()
@@ -28,6 +29,9 @@ from functools import partial
 # ### Random Initial Conditions Output Checks
 
 # We've been storing the results the the parent directory alongside the MARATHON workbook.  results.txt is from random initial condition runs from marathon.analysis.random.
+
+# In[ ]:
+
 def check_rand_results():
     #resources location
     resources="/home/craig/workspace/taa_processor/resources/"
@@ -124,8 +128,32 @@ def reorder_columns(order, df):
     cols=[c for c in order if c in df] + [c for c in df if c not in order]
     return df[cols]
 
+def ac_not_sorted(group):
+    return not all(x>=y for x, y in zip(group[('AC', '')], group[('AC', '')].iloc[1:]))
+
+def add_smoothed(group, col_name, new_name):
+    col=[i for i in range(min(group[col_name]), max(group[col_name])+1)]
+    col.reverse()
+    group[new_name]=col
+    return group
+
+def check_order(order_writer, demand_name, left, smooth):
+    #Make sure that scores are monotonically decreasing as inventory decreases
+    res=left.groupby('SRC', sort=False).filter(ac_not_sorted)
+    res[('incorrect_RA', '')]=res[('AC', '')]!=res[('AC_smoothed', '')]
+    if res[('incorrect_RA', '')].sum()==0:
+        num_flops=0
+    else: 
+        num_flops=res[('incorrect_RA', '')].sum()-1
+    print("There are ", num_flops, " flip flops for ", demand_name)
+    res.to_excel(order_writer, sheet_name=demand_name)
+    if smooth: 
+        left[('AC', '')]=left[('AC_smoothed','')]
+    left.drop([('AC_smoothed', '')], axis=1, inplace=True)
+    return left
+
 #compute score and excess from a path to results.txt
-def compute_scores(results_path, phase_weights, title_strength):
+def compute_scores(results_path, phase_weights, title_strength, smooth: bool, demand_name, order_writer):
     df=pd.read_csv(results_path, sep='\t')
     #sometimes all inventory was equal to 0, but we shouldn't have that. 
     #We should have all phases if all inventory ==0
@@ -143,19 +171,25 @@ def compute_scores(results_path, phase_weights, title_strength):
     res[('Demand_Total', '')]=res.iloc[:, res.columns.get_level_values(0)=='total-quantity'].sum(axis=1)
     res[('NG_inv', '')]=res.iloc[:, res.columns.get_level_values(0)=='NG'].max(axis=1)
     res[('RC_inv', '')]=res.iloc[:, res.columns.get_level_values(0)=='RC'].max(axis=1)
+    res.sort_values(by=[('Score', ''), ('Excess', '')], ascending=False, inplace=True)
     #need to join multindex columns to single index columns in title_strength, so this the merge process
     tuples = [('SRC', ''), ('TITLE', ''), ('STR', '')]
     titles=copy.deepcopy(title_strength)
     titles.columns=pd.MultiIndex.from_tuples(tuples, names=(None, 'phase'))
-    res = pd.merge(res.reset_index(),
+    res=res.reset_index()
+    #Make sure that scores are monotonically decreasing as inventory decreases
+    res=res.groupby(('SRC', ''), sort=False)
+    #add a smoothed AC column
+    res=res.apply(add_smoothed, ('AC', ''), ('AC_smoothed', ''))
+    res=check_order(order_writer, demand_name, res, smooth)
+    res = pd.merge(res,
           titles,
           on=[('SRC', '')],
           how='inner'
-         ).set_index(['SRC', 'AC'])
+         )
+    res=res.set_index(['SRC', 'AC'])
     res.drop(['NG', 'RC'], axis=1, level=0, inplace=True)
     return res
-
-import openpyxl
 
 #The name of the score column used in the combined worksheet before renaming for output
 combined_score_out='min_score_peak'
@@ -174,7 +208,6 @@ def move_col_names_down(df):
     new_cols = [(' ', x) if y=='' else (x, y) for (x, y) in df.columns]
     #phase is actually named after the column here
     df.columns=pd.MultiIndex.from_tuples(new_cols, names=(None, 'OML'))
-    #df.columns=new_cols
 
 #Find the the most stressful demand by first choosing the lowest total demand, then choosing
 #lowest score and then choosing lowest excess
@@ -209,9 +242,20 @@ def clear_column(row_start, column, sh):
         if(sh.cell(row,column).value is  None):
             break
         sh.cell(row,column).value= None
-        
-def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_name, baseline_path):
-    print('Building ', one_n_name)
+
+# When writing the multi-index dataframes to Excel, pandas put an extra blank row below the column names, which messes up the filter in LibreOffice, but not Excel.  In Excel, you could turn the filter on the blank row.  In LibreOffice, that didn't work.  Although, in LibreOffice, you can turn it on the first row and it captures the first value.  Excel does not.  So those are the filter workarounds, but it looks cleaner to just remove that blank row.
+def remove_blank_row(excel_path, out_path):
+    if isinstance(excel_path, str):
+        wb=openpyxl.reader.excel.load_workbook(excel_path)
+    else:
+        wb=excel_path
+    for sheet in wb.worksheets:
+        if not sheet['A3'].value:
+            sheet.delete_rows(3, 1)
+    wb.save(out_path)
+
+def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_name, baseline_path, smooth: bool):
+    print("Building ", one_n_name)
     # Read in the SRC baseline for strength and OI title.
     baseline = pd.read_excel(baseline_path)
     title_strength=baseline[['SRC', 'TITLE', 'STR']]
@@ -226,10 +270,19 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
     
     writer = pd.ExcelWriter(out_root+one_n_name, engine='xlsxwriter')
     left=pd.DataFrame()
-        
+    order_path = out_root+"out_of_order.xlsx"
+    orders= Path(order_path)
+    if orders.is_file():
+        order_writer = pd.ExcelWriter(order_path, engine='openpyxl', mode='a', if_sheet_exists='replace')
+        book=openpyxl.load_workbook(out_root+"out_of_order.xlsx")
+        order_writer.book = openpyxl.load_workbook(out_root+"out_of_order.xlsx")
+        order_writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
+    else:
+        order_writer = pd.ExcelWriter(out_root+"out_of_order.xlsx", engine='xlsxwriter')
+            
     for demand_name in results_map:
         #START OF SINGLE DEMAND OUTPUT WORKSHEET
-        scored_results = compute_scores(results_map[demand_name], phase_weights, title_strength)
+        scored_results = compute_scores(results_map[demand_name], phase_weights, title_strength, smooth, demand_name, order_writer)
         if left.empty:
             max_df=scored_results.reset_index().groupby('SRC')['AC'].apply(max)
             maxes=max_df.to_dict()
@@ -265,12 +318,13 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
         #RESTART OF SINGLE DEMAND OUTPUT WORKSHEET
         #write to excel file here
         scored_results.reset_index(inplace=True)
+        #need to sort again after changing the index..
+        scored_results.sort_values(by=[('Score', ''), ('Excess', '')], ascending=False, inplace=True)
         scored_results.rename(columns={'NG_inv':'NG', 'RC_inv':'AR', 'AC':'RA'}, inplace=True, level=0)
         initial_cols = [('SRC', ''), ('TITLE', ''), ('RA', ''), ('NG', ''), 
                         ('AR', ''),
                        ]
         reordered=reorder_columns(initial_cols, scored_results)
-        reordered.sort_values(by=[('Score', dmet_sum), ('Excess', emet_sum)], ascending=False, inplace=True)
         reordered.reset_index(inplace=True)
         reordered.drop(['index'], axis=1, level=0, inplace=True)
         #avoid rounding when we choose the min score later by doing a deep copy.
@@ -284,8 +338,8 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
     
     #NOW DOING STUFF TO OUTPUT THE COMBINED SCORE AND EXCESSES THAT WERE COLLECTED
     left.reset_index(inplace=True)
-
-
+    #deepcopy prevents working on a slice
+    left=copy.deepcopy(left)
     left['min_score_demand']=left.apply(partial(min_score_demand, results_map), axis=1)
     left['min_score_demand_total']=left.apply(partial(min_score_demand_total, results_map), axis=1)
     left['min_score_demand_peak']=left.apply(partial(min_score_demand_peak, peak_map, default_max), axis=1)
@@ -303,6 +357,7 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
     left['SRC2']=left.SRC.str[:2]
     initial_cols=['SRC2','SRC', 'TITLE', 'AC']
     left = reorder_columns(initial_cols, left)
+    #resort after choosing the max demand records from each demand case.
     left.sort_values(by=['min_score_peak', 'min_demand_peak_excess'], ascending=False, inplace=True)
     left.reset_index(inplace=True)
     left.drop(['index'], axis=1, inplace=True)
@@ -311,27 +366,18 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
     #only select final output here
     left=left[initial_cols + ['min_score_demand_peak', 'min_score_peak', 'min_demand_peak_excess', 'STR']]
     left.columns=['SRC2', 'SRC', 'TITLE', 'RA Qty', 'Most Stressful', 'Score', 'Excess', 'STR']
-    left.index=[i for i in range(1, len(left.index)+1)]          
+    left.index=[i for i in range(1, len(left.index)+1)]  
+     #output     
     left.to_excel(writer, sheet_name='combined')
     writer.save()
-
-
-
+    order_writer.save()
     wb = openpyxl.reader.excel.load_workbook(out_root+one_n_name)
     ws=wb['combined']
     ws.cell(1, 1).value = "OML"
-    #clear_column(2, 1, ws)
-    #ws.delete_cols(1, 1)
+    remove_blank_row(wb, out_root+one_n_name)
 
-
-    # When writing the multi-index dataframes to Excel, pandas put an extra blank row below the column names, which messes up the filter in LibreOffice, but not Excel.  In Excel, you could turn the filter on the blank row.  In LibreOffice, that didn't work.  Although, in LibreOffice, you can turn it on the first row and it captures the first value.  Excel does not.  So those are the filter workarounds, but it looks cleaner to just remove that blank row.
     
-    for demand_name in results_map:
-        sh = wb[demand_name]
-        sh.delete_rows(3, 1)
-        #We don't want index to show, and can't do with multi-index to_excel yet, so have to do it manually
-        #clear_column(3, 1, sh)
-    wb.save(out_root+one_n_name)
+
 
 
 
