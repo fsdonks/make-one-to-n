@@ -21,9 +21,10 @@ phase_weights= {"comp1" : 0.125,
 
 resources="/home/craig/workspace/taa_processor/resources/"
 
-results_map = {'D' : resources+"results_no_truncate_and_1_supply.txt", 
+results_map = {#'D' : resources+"results_no_truncate_and_1_supply.txt", 
                'C' : resources+"results.txt",
-              'E' : resources+"results_no_truncation.txt"}
+              'E' : resources+"results_no_truncation.txt"
+              }
 
 peak_max_workbook=resources+"computed_maxes.xlsx"
 baseline_path = resources+'/TAA24-28_SRC_BASELINE_201130_DRAFTv6.xlsx'

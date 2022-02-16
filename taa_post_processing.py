@@ -278,7 +278,7 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
         # if we're on windows, we need to modify some things for replace to
         #work properly.  Might be a bug in ExcelWriter on the high side
         #Windows version of Anaconda.
-        if sys.platform=='nt':
+        if sys.platform=='win32':
             book=openpyxl.load_workbook(out_root+"out_of_order.xlsx")
             order_writer.book = openpyxl.load_workbook(out_root+"out_of_order.xlsx")
             order_writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
@@ -305,10 +305,18 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
         scored_results.drop(columns=['max_AC_inv'], level=0, inplace=True)
         #TEMP END OF SINGLE DEMAND OUTPUT WORKSHEET
         
+        #Since we are using the score from the next lowest inventory, we need to add additional records to cover the case where we we have no runs from 0 RA 0 NG and 0 RC so that we could cut the entire RA if we wanted to.
+        test_frame=scored_results[(scored_results['AC']==2) 
+                              & (scored_results['NG_inv']==0) 
+                              & (scored_results['RC_inv']==0)].copy()
+        test_frame[('Score', '')]=test_frame[('Score', '')]-1.1
+        test_frame[('AC', '')]=1
+        scored_results=pd.concat([scored_results, test_frame], ignore_index=True)
         #add scores to all_scores
         #join tables so that you have two score columns for two demands
         #add column called min_score
         #add another column called min_score_demand that indicates which demand this came from
+        
         scored_results=scored_results.set_index(['SRC', 'AC'])
         score_columns=[('Score', dmet_sum), ('Excess', emet_sum), ('Demand_Total', '')]
         score_col_names=['Score_'+demand_name, 'Excess_'+demand_name, 'Demand_Total_'+demand_name]
