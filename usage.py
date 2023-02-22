@@ -7,6 +7,7 @@ Created on Thu Dec 16 21:08:33 2021
 """
 
 from pathlib import Path
+
 import sys
 if '__file__' not in globals():
     repo_path=Path(__file__).parent
@@ -34,7 +35,8 @@ results_map = {#'D' : resources+"results_no_truncate_and_1_supply.txt",
 
 peak_max_workbook=resources+"computed_maxes.xlsx"
 baseline_path = resources+'/SRC_BASELINE.xlsx'
-out_location="/home/craig/workspace/taa_processor/"
+out_location=repo_path+"test-output/"
+Path(out_location).mkdir(parents=False, exist_ok=True)
 proc.make_one_n(results_map, 
                 peak_max_workbook, 
                 out_location, 
