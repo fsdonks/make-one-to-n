@@ -24,30 +24,37 @@ def replace_srcs(old_file, new_file, value_list, out_path, key='SRC',):
     out_df.to_csv(out_path, sep='\t', index=False)
     print("SRCs being replaced: ", value_list)
 
-two_periods = "/home/craig/runs/results_no_post_demand/results.txt"
-def test_1():
-    three_periods = "/home/craig/runs/test-run/results.txt"
-    out = "/home/craig/runs/replaced_1.txt"
+def resource_path(repo_path, filename):
+    return repo_path+"resources/"+filename
+def output_path(repo_path, filename):
+    return repo_path+"test-output/"+filename
+
+def test_1(repo_path):  
+    three_periods = resource_path(repo_path, "results_small.txt")
+    two_periods = resource_path(repo_path, "results_no_post_demand.txt")
+    out = output_path(repo_path, "replaced_1.txt")
     replace_srcs(three_periods, two_periods, ['01205K000'], out)
 
-def test_2():
-    big_phases = "/home/craig/runs/big_test/results_no_truncate_and_1_supply.txt"
-    out = "/home/craig/runs/replaced_2.txt"
+def test_2(repo_path):
+    big_phases = resource_path(repo_path, 
+                               "results_no_truncate_and_1_supply.txt")
+    two_periods = resource_path(repo_path, "results_no_post_demand.txt")
+    out = output_path(repo_path, "replaced_2.txt")
     replace_srcs(big_phases, two_periods, ['01205K000'], out)
 
-def test_3():
-    big_phases = "/home/craig/runs/big_test/results_no_truncate_and_1_supply.txt"
-    no_truncation = "/home/craig/runs/big_test/results.txt"
-    out = "/home/craig/runs/replaced_3.txt"
+def test_3(repo_path):
+    big_phases = resource_path(repo_path, "results_no_truncate_and_1_supply.txt")
+    no_truncation = resource_path(repo_path, "results.txt")
+    out = output_path(repo_path, "replaced_3.txt")
     replace_srcs(big_phases, no_truncation, ['01205K000', "01225K000"], out)
     #Try passing False as the value_list to replace all SRCs in the new
-    replace_srcs(big_phases, "/home/craig/runs/big_test/results_4_SRCs.csv", False, out)
+    four_srcs = resource_path(repo_path, "results_4_SRCs.csv")
+    out_2 = output_path(repo_path, "replaced_4.txt")
+    replace_srcs(big_phases, four_srcs, False, out_2)
     
-def do_tests():  
-    test_1()
-    test_2()
-    test_3()
-
-do_tests()
+def do_tests(repo_path):  
+    test_1(repo_path)
+    test_2(repo_path)
+    test_3(repo_path)
 
 

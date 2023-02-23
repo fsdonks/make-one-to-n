@@ -9,15 +9,15 @@ Created on Thu Dec 16 21:08:33 2021
 from pathlib import Path
 
 import sys
-if '__file__' not in globals():
-    repo_path=Path(__file__).parent
+if '__file__' in globals():
+    repo_path=str(Path(__file__).parent)
 else: 
     repo_path='/home/craig/workspace/taa_processor'
+    
 repo_path=repo_path+'/'
 sys.path.append(repo_path)
 
-import taa_post_processing as proc
-
+import taa_post_processing as proc #examples
 #Weights used for a weighted score.
 phase_weights= {"comp1" : 0.125,
                "comp2" : 0.125,
@@ -45,3 +45,7 @@ proc.make_one_n(results_map,
                 baseline_path, True)
 
 proc.remove_blank_row(out_location+"out_of_order.xlsx", out_location+"out_of_order.xlsx")
+
+import src_replacer as replacer #examples
+
+replacer.do_tests(repo_path)

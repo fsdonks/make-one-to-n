@@ -1,0 +1,3 @@
+rep-seed	SRC	phase	AC-fill	NG-fill	RC-fill	AC-overlap	NG-overlap	RC-overlap	total-quantity	AC-deployable	NG-deployable	RC-deployable	AC-not-ready	NG-not-ready	RC-not-ready	AC-total	NG-total	RC-total	AC	NG	RC
+-5025562857975149833	01205K000	PreSurge	0	0	260	0	0	0	260	0	0	1	0	0	0	0	0	261	0	0	1
+-5843495416241995736	01205K000	PreSurge	0	0	260	0	0	0	260	0	0	1	0	0	0	0	0	261	0	0	1
