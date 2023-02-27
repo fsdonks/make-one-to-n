@@ -12,7 +12,7 @@ import sys
 if '__file__' in globals():
     repo_path=str(Path(__file__).parent)
 else: 
-    repo_path='/home/craig/workspace/taa_processor'
+    repo_path='/home/craig/workspace/make-one-to-n'
     
 repo_path=repo_path+'/'
 sys.path.append(repo_path)
