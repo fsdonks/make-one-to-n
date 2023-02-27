@@ -293,6 +293,17 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
             maxes=max_df.to_dict()
         #just to repeat the SRC in the output. Also will add an index on the left.
         scored_results.reset_index(inplace=True)
+        
+        #Since we are using the score from the next lowest inventory, we 
+        #need to add additional records to cover the case where we we have no
+        #runs from 0 RA 0 NG and 0 RC so that we could cut the entire RA if we
+        #wanted to.
+        test_frame=scored_results[(scored_results['AC']==1) 
+                              & (scored_results['NG_inv']==0) 
+                              & (scored_results['RC_inv']==0)].copy()
+        test_frame[('Score', '')]=test_frame[('Score', '')]-1.1
+        test_frame[('AC', '')]=1
+        
         #add max ac inventory
         scored_results['max_AC_inv']=scored_results['SRC'].map(maxes)
         #filter out the base inventories
@@ -305,12 +316,7 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
         scored_results.drop(columns=['max_AC_inv'], level=0, inplace=True)
         #TEMP END OF SINGLE DEMAND OUTPUT WORKSHEET
         
-        #Since we are using the score from the next lowest inventory, we need to add additional records to cover the case where we we have no runs from 0 RA 0 NG and 0 RC so that we could cut the entire RA if we wanted to.
-        test_frame=scored_results[(scored_results['AC']==2) 
-                              & (scored_results['NG_inv']==0) 
-                              & (scored_results['RC_inv']==0)].copy()
-        test_frame[('Score', '')]=test_frame[('Score', '')]-1.1
-        test_frame[('AC', '')]=1
+        #add on records to cut the last unit in the inventory.
         scored_results=pd.concat([scored_results, test_frame], ignore_index=True)
         #add scores to all_scores
         #join tables so that you have two score columns for two demands
