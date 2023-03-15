@@ -107,10 +107,10 @@ def by_phase_percentages(results_df):
 
 
 # Do first: 1 workbook
-# 	(need to groupby.mean.unstack phase, but what do I expect?)
-# 	Tab 1: src, ac, results by phase for demand 1, add score, excess
-# 	Tab 2: src, ac, results by phase in columns for demand 2, add score excess
-# 	Tab 3: src, ac, score-demand1, excess-demand1, score-dmd2, excess-dmd2, min-demand, min score.
+#     (need to groupby.mean.unstack phase, but what do I expect?)
+#     Tab 1: src, ac, results by phase for demand 1, add score, excess
+#     Tab 2: src, ac, results by phase in columns for demand 2, add score excess
+#     Tab 3: src, ac, score-demand1, excess-demand1, score-dmd2, excess-dmd2, min-demand, min score.
 
 # In[ ]:
 
@@ -255,6 +255,31 @@ def remove_blank_row(excel_path, out_path):
             sheet.delete_rows(3, 1)
     wb.save(out_path)
 
+#For the negative scores for last cuts, set the Score to 0 for display and
+#do the same with the Excess.
+def zero_negative_scores(group_df, excess_col, score_col):
+    group_df[excess_col] = np.where((group_df[score_col]<0), 0,                 
+                                       group_df[excess_col])
+    group_df[score_col] = np.where((group_df[score_col]<0), 0,                 
+                                       group_df[score_col])    
+    return group_df
+    
+#add the last ra cuts if there is no rc
+def add_last_ra_cuts(scored_results):
+    #Since we are using the score from the next lowest inventory, we 
+        #need to add additional records to cover the case where we we have no
+        #runs from 0 RA 0 NG and 0 RC so that we could cut the entire RA if we
+        #wanted to.
+        test_frame=scored_results[(scored_results['AC']==1) 
+                              & (scored_results['NG_inv']==0) 
+                              & (scored_results['RC_inv']==0)].copy()
+        test_frame[('Score', '')]=test_frame[('Score', '')]-1.1
+        test_frame[('AC', '')]=0
+        zero_cols=['demand_met', 'dmet_times_weight', 'emet_times_weight',
+                   'excess_met']
+        test_frame[zero_cols]=0
+        return test_frame
+    
 def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_name, baseline_path, smooth: bool):
     print("Building ", one_n_name)
     # Read in the SRC baseline for strength and OI title.
@@ -294,15 +319,10 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
         #just to repeat the SRC in the output. Also will add an index on the left.
         scored_results.reset_index(inplace=True)
         
-        #Since we are using the score from the next lowest inventory, we 
-        #need to add additional records to cover the case where we we have no
-        #runs from 0 RA 0 NG and 0 RC so that we could cut the entire RA if we
-        #wanted to.
-        test_frame=scored_results[(scored_results['AC']==1) 
-                              & (scored_results['NG_inv']==0) 
-                              & (scored_results['RC_inv']==0)].copy()
-        test_frame[('Score', '')]=test_frame[('Score', '')]-1.1
-        test_frame[('AC', '')]=1
+        test_frame=add_last_ra_cuts(scored_results)
+        
+        #add on records to cut the last unit in the inventory.
+        scored_results=pd.concat([scored_results, test_frame], ignore_index=True)
         
         #add max ac inventory
         scored_results['max_AC_inv']=scored_results['SRC'].map(maxes)
@@ -315,14 +335,11 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
         #remove maxes
         scored_results.drop(columns=['max_AC_inv'], level=0, inplace=True)
         #TEMP END OF SINGLE DEMAND OUTPUT WORKSHEET
-        
-        #add on records to cut the last unit in the inventory.
-        scored_results=pd.concat([scored_results, test_frame], ignore_index=True)
+            
         #add scores to all_scores
         #join tables so that you have two score columns for two demands
         #add column called min_score
         #add another column called min_score_demand that indicates which demand this came from
-        
         scored_results=scored_results.set_index(['SRC', 'AC'])
         score_columns=[('Score', dmet_sum), ('Excess', emet_sum), ('Demand_Total', '')]
         score_col_names=['Score_'+demand_name, 'Excess_'+demand_name, 'Demand_Total_'+demand_name]
@@ -339,6 +356,8 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
         scored_results.reset_index(inplace=True)
         #need to sort again after changing the index..
         scored_results.sort_values(by=[('Score', ''), ('Excess', '')], ascending=False, inplace=True)
+        scored_results=zero_negative_scores(scored_results, ('Excess', ''), 
+                                            ('Score', ''))
         scored_results.rename(columns={'NG_inv':'NG', 'RC_inv':'AR', 'AC':'RA'}, inplace=True, level=0)
         initial_cols = [('SRC', ''), ('TITLE', ''), ('RA', ''), ('NG', ''), 
                         ('AR', ''),
@@ -372,7 +391,7 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
     left['min_demand_total_excess']=left.apply(add_excess, axis=1, pull='min_score_demand_total', left=left)
     left['min_demand_peak_excess']=left.apply(add_excess, axis=1, pull='min_score_demand_peak', left=left)
     #write third worksheet with all scores here
-    left = pd.merge(left, title_strength, on='SRC')
+    left = pd.merge(left, title_strength, on='SRC', validate='many_to_one')
     left['SRC2']=left.SRC.str[:2]
     initial_cols=['SRC2','SRC', 'TITLE', 'AC']
     left = reorder_columns(initial_cols, left)
@@ -386,6 +405,7 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
     left=left[initial_cols + ['min_score_demand_peak', 'min_score_peak', 'min_demand_peak_excess', 'STR']]
     left.columns=['SRC2', 'SRC', 'TITLE', 'RA Qty', 'Most Stressful', 'Score', 'Excess', 'STR']
     left.index=[i for i in range(1, len(left.index)+1)]  
+    left=zero_negative_scores(left, 'Excess', 'Score')
      #output     
     left.to_excel(writer, sheet_name='combined')
     writer.save()
