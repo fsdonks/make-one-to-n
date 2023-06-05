@@ -49,3 +49,27 @@ proc.remove_blank_row(out_location+"out_of_order.xlsx", out_location+"out_of_ord
 import src_replacer as replacer #examples
 
 replacer.do_tests(repo_path)
+
+phase_weights_concated= {"comp1" : 0.125, #won't be used
+               "comp2" : 0.125,  #won't be used
+               "phase1-C" : .1,
+               "phase2-C" : .1,
+               "phase3-C" : .1,
+               "phase4-C" : .1,
+               "comp1-E" :  .1,
+               "comp2-E" :  .1,
+               "phase1-E" : .1,
+               "phase2-E" : .1,
+               "phase3-E" : .1,
+               "phase4-E" : .1}
+
+#If demands are weighted like C is worth 90% and E is worth 10%,
+#can also make the concated phase weights more easily with something like
+splits=proc.split_run_weights(results_map, {"C" : .9, "E" : .1}, phase_weights)
+
+proc.one_n_across_runs(results_map, 
+                resources+"computed_maxes_dummy.xlsx", 
+                out_location, 
+                phase_weights_concated, 
+                'Modeling_Results_concatenated.xlsx', 
+                baseline_path, True)

@@ -153,9 +153,17 @@ def check_order(order_writer, demand_name, left, smooth):
     left.drop([('AC_smoothed', '')], axis=1, inplace=True)
     return left
 
+def load_results(results):
+    if isinstance(results, pd.DataFrame):        
+        #already a dataframe
+        df=results
+    else:
+        df=pd.read_csv(results, sep='\t')
+    return df
+
 #compute score and excess from a path to results.txt
 def compute_scores(results_path, phase_weights, title_strength, smooth: bool, demand_name, order_writer):
-    df=pd.read_csv(results_path, sep='\t')
+    df=load_results(results_path)
     #sometimes all inventory was equal to 0, but we shouldn't have that. 
     #We should have all phases if all inventory ==0
     df= df[(df[['AC', 'NG', 'RC']] == 0).all(axis=1)==False]
@@ -414,6 +422,39 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
     ws=wb['combined']
     ws.cell(1, 1).value = "OML"
     remove_blank_row(wb, out_root+one_n_name)
+    
+def concat_run_to_phase(run_key, results_path):
+    df=pd.read_csv(results_path, sep='\t')
+    df['phase']=df['phase']+'-'+run_key
+    return df
+
+#Before we call make_one_n, concatenate all of the results files into one
+#DataFrame, concatenating phase labels with the run key in the results_map.
+def one_n_across_runs(results_map, peak_max_workbook, out_root, phase_weights, one_n_name, baseline_path, smooth: bool):
+    concatenated_dfs=[]
+    for demand_name in results_map:
+        concatenated_df=concat_run_to_phase(demand_name, results_map[demand_name])
+        concatenated_dfs.append(concatenated_df)
+    all_runs_df=pd.concat(concatenated_dfs)
+    dummy_results_map={'all_runs' : all_runs_df}
+    make_one_n(dummy_results_map, peak_max_workbook, out_root, phase_weights, one_n_name, baseline_path, smooth)
+    
+#So far, we've had an agreed upon weighting for each phase of the demand, and
+#now that we're weighting results across multiple Marathon runs, we want to say
+#demand c has 75% weight and demand A has 25% weight and then multiple those
+#weights by the weight for each phase.
+#results_weight looks like {demand_A : .25, demand_C : .75}
+#phase_breakout looks like {comp: 75, phase_1 : .06, phase_2: .19}
+def split_run_weights(results_map, results_weights, phase_breakout):
+    all_weights={}
+    for demand_name in results_map:
+        for phase in phase_breakout:
+            all_weights[phase + '-' + demand_name]= \
+            phase_breakout[phase]*results_weights[demand_name]
+    return all_weights
+        
+        
+        
 
     
 
