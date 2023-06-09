@@ -65,7 +65,7 @@ phase_weights_concated= {"comp1" : 0.125, #won't be used
 
 #If demands are weighted like C is worth 90% and E is worth 10%,
 #can also make the concated phase weights more easily with something like
-splits=proc.split_run_weights(results_map, {"C" : .9, "E" : .1}, phase_weights)
+splits=proc.split_run_weights({"C" : .9, "E" : .1}, phase_weights)
 
 proc.one_n_across_runs(results_map, 
                 resources+"computed_maxes_dummy.xlsx", 
