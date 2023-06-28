@@ -88,21 +88,19 @@ import numpy as np
 def by_phase_percentages(results_df):
     group_df = results_df.groupby(by=['SRC', 'AC', 'phase']).mean().reset_index()
     #when there is no demand in a phase, dmet is 100%
-    group_df[dmet] = np.where((group_df['total-quantity']==0), 1, 
-                                                                (group_df['NG-fill'] + 
-                                                                group_df['AC-fill'] + 
-                                                                group_df['RC-fill']) / group_df['total-quantity'])
+    group_df[dmet] = np.where((group_df['total-quantity']==0), 1,
+                              (group_df['NG-fill'] +
+                               group_df['AC-fill'] +
+                               group_df['RC-fill']) / group_df['total-quantity'])
     #When there is no demand in a phase, emet is the max emet across all SRCs and phases.
     excess_df = copy.deepcopy(group_df[(group_df['total-quantity'] != 0)])
     compute_excess(excess_df)
     max_excess=excess_df[emet].max()+1
-    
     group_df[emet] = np.where((group_df['total-quantity']==0), max_excess, 
-                                                        (group_df['NG-deployable'] + 
-                                                        group_df['AC-deployable'] + 
+                                                        (group_df['NG-deployable'] +
+                                                        group_df['AC-deployable'] +
                                                         group_df['RC-deployable']) / group_df['total-quantity'])
     #this will be 0 because if there is no demand, we don't have a record.
-
     return group_df
 
 
