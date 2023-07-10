@@ -191,6 +191,7 @@ def compute_scores(results_path, phase_weights, title_strength, smooth: bool, de
     #add a smoothed AC column
     res=res.apply(add_smoothed, ('AC', ''), ('AC_smoothed', ''))
     res=check_order(order_writer, demand_name, res, smooth)
+    res=res.reset_index(drop=True)
     res = pd.merge(res,
           titles,
           on=[('SRC', '')],
@@ -416,8 +417,8 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
     left=zero_negative_scores(left, 'Excess', 'Score')
      #output     
     left.to_excel(writer, sheet_name='combined')
-    writer.save()
-    order_writer.save()
+    writer.close()
+    order_writer.close()
     wb = openpyxl.reader.excel.load_workbook(out_root+one_n_name)
     ws=wb['combined']
     ws.cell(1, 1).value = "OML"
