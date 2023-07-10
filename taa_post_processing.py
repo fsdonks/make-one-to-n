@@ -448,10 +448,10 @@ def one_n_across_runs(results_map, peak_max_workbook, out_root, phase_weights, o
 #phase_breakout looks like {comp: 75, phase_1 : .06, phase_2: .19}
 #there might be cases where we don't want to concat the run name to the phase
 #like if we only have one entry in the results_map.
-def split_run_weights(results_map, results_weights, phase_breakout, 
+def split_run_weights(results_weights, phase_breakout, 
                       concat_run: bool=True):
     all_weights={}
-    for demand_name in results_map:
+    for demand_name in results_weights:
         for phase in phase_breakout:
             if concat_run:
                 k=phase + '-' + demand_name
