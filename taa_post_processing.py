@@ -289,6 +289,19 @@ def add_last_ra_cuts(scored_results):
         test_frame[zero_cols]=0
         return test_frame
     
+#When deciding whether to cut a unit, it makes sense to cut based on what
+#the score would be after the cut.  This shifts all scores up one inventory
+#level to accomplish that.
+def drop_scores(df):
+            test_frame=add_last_ra_cuts(df)           
+            #add on records to cut the last unit in the inventory.
+            scored_results=pd.concat([df, test_frame], ignore_index=True)
+            #filter out the base inventories
+            scored_results=scored_results[scored_results['AC']!=scored_results['max_AC_inv']]
+            #add one to the remaining inventory records
+            scored_results['AC']=scored_results['AC']+1
+            return scored_results
+        
 def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, 
                one_n_name, baseline_path, smooth: bool, drop_down: bool=True):
     print("Building ", one_n_name)
@@ -321,18 +334,13 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights,
             maxes=max_df.to_dict()
         #just to repeat the SRC in the output. Also will add an index on the left.
         scored_results.reset_index(inplace=True)
-        
-        test_frame=add_last_ra_cuts(scored_results)
-        
-        #add on records to cut the last unit in the inventory.
-        scored_results=pd.concat([scored_results, test_frame], ignore_index=True)
-        
         #add max ac inventory
         scored_results['max_AC_inv']=scored_results['SRC'].map(maxes)
-        #filter out the base inventories
-        scored_results=scored_results[scored_results['AC']!=scored_results['max_AC_inv']]
-        #add one to the remaining inventory records
-        scored_results['AC']=scored_results['AC']+1
+        if drop_down:
+            scored_results=drop_scores(scored_results)    
+        #else: 
+              #We also get more records now where 0 is the max RA inventory
+              #and we had some RC to run.
         #indicate those records that are the base supply
         scored_results['base_supply']=np.where((scored_results['AC']==scored_results['max_AC_inv']), 'X', 'Down')
         #remove maxes

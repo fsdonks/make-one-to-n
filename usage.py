@@ -44,6 +44,13 @@ proc.make_one_n(results_map,
                 'Modeling_Results.xlsx', 
                 baseline_path, True)
 
+proc.make_one_n(results_map, 
+                peak_max_workbook, 
+                out_location, 
+                phase_weights, 
+                'Modeling_Results_no-dropdown.xlsx', 
+                baseline_path, True, drop_down=False)
+
 proc.remove_blank_row(out_location+"out_of_order.xlsx", out_location+"out_of_order.xlsx")
 
 import src_replacer as replacer #examples
