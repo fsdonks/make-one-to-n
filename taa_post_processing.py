@@ -289,7 +289,8 @@ def add_last_ra_cuts(scored_results):
         test_frame[zero_cols]=0
         return test_frame
     
-def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_name, baseline_path, smooth: bool):
+def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, 
+               one_n_name, baseline_path, smooth: bool, drop_down: bool=True):
     print("Building ", one_n_name)
     # Read in the SRC baseline for strength and OI title.
     baseline = pd.read_excel(baseline_path)
@@ -309,13 +310,6 @@ def make_one_n(results_map, peak_max_workbook, out_root, phase_weights, one_n_na
     orders= Path(order_path)
     if orders.is_file():
         order_writer = pd.ExcelWriter(order_path, engine='openpyxl', mode='a', if_sheet_exists='replace')
-        # if we're on windows, we need to modify some things for replace to
-        #work properly.  Might be a bug in ExcelWriter on the high side
-        #Windows version of Anaconda.
-        if sys.platform=='win32':
-            book=openpyxl.load_workbook(out_root+"out_of_order.xlsx")
-            order_writer.book = openpyxl.load_workbook(out_root+"out_of_order.xlsx")
-            order_writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
     else:
         order_writer = pd.ExcelWriter(out_root+"out_of_order.xlsx", engine='xlsxwriter')
             
